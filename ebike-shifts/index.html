@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Смены на байке</title>
+<meta name="description" content="Расчёт смен для электровелосипеда с учётом батареи и зарядки">
+<meta name="theme-color" content="#0e1210" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f3f5ef" media="(prefers-color-scheme: light)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Смены">
+<style>
+  :root {
+    --bg: #0e1210;
+    --surface: #161d19;
+    --surface2: #1d2621;
+    --line: #2a352f;
+    --text: #eef3ee;
+    --muted: #95a59a;
+    --accent: #c8f23a;
+    --accent-ink: #11160a;
+    --warn: #ffb454;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f3f5ef;
+      --surface: #ffffff;
+      --surface2: #eef2e8;
+      --line: #dbe2d0;
+      --text: #161c14;
+      --muted: #5b6a57;
+      --accent: #4f7d00;
+      --accent-ink: #ffffff;
+      --warn: #b86a00;
+      color-scheme: light;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+             max(28px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  .wrap { max-width: 520px; margin: 0 auto; display: grid; gap: 14px; }
+  h1, h2, h3, p { margin: 0; }
+  button, input, select { font: inherit; color: inherit; }
+
+  .top { display: flex; align-items: center; gap: 12px; padding: 4px 2px 2px; }
+  .logo {
+    width: 44px; height: 44px; border-radius: 13px; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; flex: none;
+  }
+  .top h1 { font-size: 24px; letter-spacing: -.01em; line-height: 1.1; }
+  .top p { color: var(--muted); font-size: 14px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px;
+  }
+  .card > h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 12px; }
+
+  .times { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 10px; }
+  .time span { display: block; font-size: 13px; color: var(--muted); margin: 0 0 4px 4px; }
+  .sep { color: var(--muted); font-size: 22px; padding-bottom: 14px; }
+  input[type="time"], input[type="text"], select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--line); border-radius: 14px;
+    padding: 10px 12px; min-height: 48px; outline: none;
+  }
+  input[type="time"] {
+    font-size: 32px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: .01em;
+    min-height: 62px; padding: 6px 8px;
+  }
+  input:focus-visible, select:focus-visible, summary:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .hint { color: var(--muted); font-size: 14px; margin-top: 12px; }
+
+  details.card > summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    font-weight: 600; min-height: 28px;
+  }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary .chev { width: 20px; height: 20px; flex: none; color: var(--muted); transition: transform .2s; }
+  details[open] > summary .chev { transform: rotate(180deg); }
+  summary .sum { display: block; font-weight: 400; font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .field { display: block; }
+  .field.wide { grid-column: 1 / -1; }
+  .field span { display: block; font-size: 13px; color: var(--muted); margin: 0 0 4px 2px; }
+  .field input, .field select { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ghost {
+    background: transparent; border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px; min-height: 40px; cursor: pointer;
+  }
+  .ghost:active { background: var(--surface2); }
+  .actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+  .note {
+    border: 1px solid var(--line); border-left: 3px solid var(--warn); background: var(--surface);
+    border-radius: 12px; padding: 10px 14px; font-size: 14px;
+  }
+  .error { border-left-color: #ff6b5e; }
+
+  .results { display: grid; gap: 14px; }
+  .var { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 14px; }
+  .var.best { border-color: var(--accent); }
+  .var > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .badge {
+    display: inline-block; background: var(--accent); color: var(--accent-ink); border-radius: 99px;
+    font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 3px 9px; margin-bottom: 6px;
+  }
+  .var h3 { font-size: 19px; line-height: 1.2; }
+  .var header p { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .total { text-align: right; flex: none; }
+  .total b { display: block; font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--accent); white-space: nowrap; }
+  .total small { color: var(--muted); font-size: 12px; }
+
+  svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+  .c-band { fill: var(--accent); opacity: .16; }
+  .c-strip { fill: var(--accent); }
+  .c-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+  .c-res { stroke: var(--warn); stroke-width: 1; stroke-dasharray: 3 3; opacity: .75; }
+  .c-axis { stroke: var(--line); stroke-width: 1; }
+  .c-line { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .c-txt { fill: var(--muted); font-size: 10px; font-family: inherit; }
+  .c-txt.warn { fill: var(--warn); }
+
+  ol.slots { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .slot {
+    display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 12px;
+    background: var(--surface2); border-radius: 14px; padding: 10px 12px;
+  }
+  .slot .ic {
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px;
+    background: var(--accent); color: var(--accent-ink);
+  }
+  .slot.charge .ic { background: transparent; border: 1.5px solid var(--warn); color: var(--warn); }
+  .slot .t { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .slot .t sup { font-size: 10px; color: var(--muted); margin-left: 2px; font-weight: 600; }
+  .slot .s { font-size: 13px; color: var(--muted); margin-top: 1px; }
+  .slot .d { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; font-size: 15px; white-space: nowrap; }
+  .slot.charge .d { color: var(--warn); }
+  .slot.free { background: transparent; border: 1px dashed var(--line); }
+  .slot.free .ic { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
+  .slot.free .t { font-size: 15px; font-weight: 600; color: var(--muted); }
+  .slot.free .d { color: var(--muted); font-weight: 600; }
+
+  .var > footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .var footer .delta { color: var(--muted); font-size: 13px; }
+
+  .foot { color: var(--muted); font-size: 13px; padding: 0 4px; }
+  noscript { display: block; padding: 16px; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M13.2 2 4.5 13.6h6.1L9.5 22l9-11.9h-6.3z"/></svg>
+    </div>
+    <div>
+      <h1>Смены</h1>
+      <p>Расчёт под батарею электровелосипеда</p>
+    </div>
+  </header>
+
+  <section class="card" aria-labelledby="win-h">
+    <h2 id="win-h">Когда могу работать</h2>
+    <div class="times">
+      <label class="time"><span>С</span><input id="start" type="time" required></label>
+      <span class="sep" aria-hidden="true">→</span>
+      <label class="time"><span>До</span><input id="end" type="time" required></label>
+    </div>
+    <p id="winInfo" class="hint"></p>
+  </section>
+
+  <details class="card" id="settings">
+    <summary>
+      <span>Батарея и зарядка<span class="sum" id="sumLine"></span></span>
+      <svg class="chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 5 5 5-5"/></svg>
+    </summary>
+    <div class="fields">
+      <label class="field"><span>Запас хода на полном заряде, ч</span><input id="cap" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label class="field"><span>Остаток в конце смены, %</span><input id="reserve" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label class="field"><span>Полная зарядка, ч</span><input id="charge" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label class="field"><span>Заряд на старте дня, %</span><input id="soc0" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label class="field wide"><span>Короткая смена, % от длинной (для вариантов «больше в начале / в конце»)</span><input id="shortPct" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label class="field wide"><span>Если окно длиннее, чем нужно, свободное время…</span>
+        <select id="slack">
+          <option value="break">добавить к перерыву (зарядка с запасом)</option>
+          <option value="end">оставить в конце дня</option>
+          <option value="start">оставить в начале дня</option>
+        </select>
+      </label>
+    </div>
+    <p class="hint" id="modelLine"></p>
+    <div class="actions"><button class="ghost" id="reset" type="button">Сбросить настройки</button></div>
+  </details>
+
+  <p id="note" class="note" hidden></p>
+  <section id="results" class="results" aria-live="polite"></section>
+
+  <p class="foot">Заряд считается равномерным: расход и зарядка идут с постоянной скоростью. На практике последние проценты заряжаются медленнее — оставляйте небольшой запас по времени.</p>
+  <noscript>Для работы приложения нужен JavaScript.</noscript>
+</main>
+
+<script src="calc.js"></script>
+<script>
+(function () {
+  'use strict';
+  var C = window.ShiftCalc;
+  var KEY = 'ebike-shifts-v1';
+  var DEF = { start: '10:00', end: '23:00', cap: '5', reserve: '15', charge: '5,5', soc0: '100', shortPct: '65', slack: 'break' };
+  var ids = Object.keys(DEF);
+  var BOLT = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M13.2 2 4.5 13.6h6.1L9.5 22l9-11.9h-6.3z"/></svg>';
+
+  function $(id) { return document.getElementById(id); }
+  function load() {
+    try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY)) || {}); }
+    catch (e) { return Object.assign({}, DEF); }
+  }
+  function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+
+  var st = load();
+  ids.forEach(function (id) { $(id).value = st[id]; });
+
+  function parseTime(s) {
+    var m = /^(\d{1,2}):(\d{2})/.exec(s || '');
+    return m ? (+m[1]) * 60 + (+m[2]) : NaN;
+  }
+  function pct(x) { return Math.round(x) + '%'; }
+  function tm(t) {
+    var s = C.fmtTime(t), d = C.dayShift(t);
+    return s + (d > 0 ? '<sup>+1</sup>' : '');
+  }
+  function plain(t) { return C.fmtTime(t) + (C.dayShift(t) > 0 ? ' (+1)' : ''); }
+  function range(a, b) { return tm(a) + ' – ' + tm(b); }
+
+  var TITLES = {
+    max:   ['Максимум часов', 'две смены, примерно поровну'],
+    front: ['Больше в начале', 'длинная смена, потом короткая'],
+    back:  ['Больше в конце', 'короткая смена, потом длинная'],
+    one:   ['Одна смена', 'без подзарядки днём']
+  };
+
+  function chart(v, res) {
+    var VW = 320, VH = 112, L = 34, R = 10, Tp = 8, H = 68;
+    var W = VW - L - R, S = res.S, T = res.T, p = res.p;
+    function X(t) { return (L + (t - S) / T * W).toFixed(1); }
+    function Y(s) { return (Tp + (1 - s / 100) * H).toFixed(1); }
+    var out = [];
+    out.push('<svg class="chart" viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="График заряда батареи в течение дня">');
+
+    v.items.filter(function (i) { return i.type === 'work'; }).forEach(function (i) {
+      out.push('<rect class="c-band" x="' + X(i.start) + '" y="' + Tp + '" width="' + (X(i.end) - X(i.start)).toFixed(1) + '" height="' + H + '" rx="3"/>');
+      out.push('<rect class="c-strip" x="' + X(i.start) + '" y="' + (Tp + H + 6) + '" width="' + (X(i.end) - X(i.start)).toFixed(1) + '" height="5" rx="2.5"/>');
+    });
+
+    out.push('<line class="c-grid" x1="' + L + '" x2="' + (VW - R) + '" y1="' + Y(100) + '" y2="' + Y(100) + '"/>');
+    out.push('<text class="c-txt" x="' + (L - 6) + '" y="' + (+Y(100) + 3.5) + '" text-anchor="end">100%</text>');
+    if (p.reserve > 0) {
+      out.push('<line class="c-res" x1="' + L + '" x2="' + (VW - R) + '" y1="' + Y(p.reserve) + '" y2="' + Y(p.reserve) + '"/>');
+      out.push('<text class="c-txt warn" x="' + (L - 6) + '" y="' + (+Y(p.reserve) + 3.5) + '" text-anchor="end">' + Math.round(p.reserve) + '%</text>');
+    }
+    out.push('<line class="c-axis" x1="' + L + '" x2="' + (VW - R) + '" y1="' + Y(0) + '" y2="' + Y(0) + '"/>');
+
+    var pts = [[S, p.soc0]], cur = p.soc0;
+    v.items.forEach(function (it) {
+      if (it.type === 'work') {
+        pts.push([it.start, cur]); cur = it.to; pts.push([it.end, cur]);
+      } else if (it.type === 'charge') {
+        var tCap = it.start + (100 - it.from) / res.g;
+        if (tCap < it.end - 0.5) { pts.push([tCap, 100]); pts.push([it.end, 100]); }
+        else pts.push([it.end, it.to]);
+        cur = it.to;
+      }
+    });
+    pts.push([S + T, cur]);
+    out.push('<polyline class="c-line" points="' + pts.map(function (q) { return X(q[0]) + ',' + Y(q[1]); }).join(' ') + '"/>');
+
+    var hStep = T <= 6 * 60 ? 1 : (T <= 14 * 60 ? 2 : 3);
+    for (var h = Math.ceil(S / 60); h * 60 <= S + T; h++) {
+      if (h % hStep !== 0) continue;
+      var x = +X(h * 60);
+      if (x < L - 2 || x > VW - R + 2) continue;
+      out.push('<text class="c-txt" x="' + x.toFixed(1) + '" y="' + (VH - 2) + '" text-anchor="middle">' + (h % 24) + '</text>');
+    }
+    out.push('</svg>');
+    return out.join('');
+  }
+
+  function slots(v) {
+    var n = 0;
+    return '<ol class="slots">' + v.items.map(function (it) {
+      if (it.type === 'work') {
+        n++;
+        return '<li class="slot work"><span class="ic">' + n + '</span><div><div class="t">' + range(it.start, it.end) +
+          '</div><div class="s">заряд ' + pct(it.from) + ' → ' + pct(it.to) + '</div></div><span class="d">' + C.fmtDur(it.dur) + '</span></li>';
+      }
+      if (it.type === 'charge') {
+        var extra = it.dur - it.needed >= 10 ? ' · нужно ≈ ' + C.fmtDur(it.needed) : '';
+        return '<li class="slot charge"><span class="ic">' + BOLT + '</span><div><div class="t">' + range(it.start, it.end) +
+          '</div><div class="s">зарядка ' + pct(it.from) + ' → ' + pct(it.to) + extra + '</div></div><span class="d">' + C.fmtDur(it.dur) + '</span></li>';
+      }
+      return '<li class="slot free"><span class="ic">–</span><div><div class="t">' + range(it.start, it.end) +
+        '</div><div class="s">свободное время</div></div><span class="d">' + C.fmtDur(it.dur) + '</span></li>';
+    }).join('') + '</ol>';
+  }
+
+  function copyText(v) {
+    var w = v.items.filter(function (i) { return i.type === 'work'; });
+    return 'Смены: ' + w.map(function (i) { return plain(i.start) + '–' + plain(i.end); }).join(', ') +
+      ' · всего ' + C.fmtDur(v.work);
+  }
+
+  var current = null;
+
+  function showNote(text, isError) {
+    var n = $('note');
+    if (!text) { n.hidden = true; return; }
+    n.hidden = false; n.textContent = text;
+    n.className = 'note' + (isError ? ' error' : '');
+  }
+
+  function render() {
+    ids.forEach(function (id) { st[id] = $(id).value; });
+    save(st);
+
+    $('sumLine').textContent = st.cap + ' ч · остаток ' + st.reserve + '% · зарядка ' + st.charge + ' ч';
+
+    var s = parseTime(st.start), e = parseTime(st.end);
+    var res = C.compute(s, e, st);
+    current = res;
+    if (res.error) {
+      $('winInfo').textContent = '';
+      $('modelLine').textContent = '';
+      $('results').innerHTML = '';
+      showNote(res.error, true);
+      return;
+    }
+
+    var crosses = e < s;
+    $('winInfo').textContent = 'Окно ' + C.fmtDur(res.T) + (crosses ? ' (через полночь)' : '') +
+      ' · одной батареи хватает на ' + C.fmtDur(C.floorStep(res.U0));
+    $('modelLine').textContent = '1 ч езды ≈ ' + Math.round(res.r * 60) + '% заряда · 1 ч зарядки ≈ ' + Math.round(res.g * 60) +
+      '% · на каждый лишний час работы нужно ≈ ' + C.fmtDur(res.k * 60) + ' зарядки.';
+    showNote(res.notes.join(' '), false);
+
+    var badgeDone = false;
+    $('results').innerHTML = res.variants.map(function (v, i) {
+      var t = TITLES[v.kind];
+      var sub = t[1];
+      if (v.kind === 'one') sub = res.T <= res.U0 ? 'заряда хватает на всё окно' : 'без подзарядки днём';
+      var isBest = !badgeDone && res.variants.length > 1 && v.work === res.bestWork && v.kind !== 'one';
+      if (isBest) badgeDone = true;
+      var delta = res.bestWork - v.work;
+      var deltaTxt = isBest ? 'больше всего работы' : (delta >= 5 ? '−' + C.fmtDur(delta) + ' к максимуму' : (res.variants.length > 1 ? 'столько же, но иначе' : ''));
+      return '<article class="var' + (isBest ? ' best' : '') + '">' +
+        '<header><div>' + (isBest ? '<span class="badge">Рекомендую</span>' : '') + '<h3>' + t[0] + '</h3><p>' + sub + '</p></div>' +
+        '<div class="total"><b>' + C.fmtDur(v.work) + '</b><small>в работе</small></div></header>' +
+        chart(v, res) + slots(v) +
+        '<footer><span class="delta">' + deltaTxt + '</span><button class="ghost copy" type="button" data-i="' + i + '">Копировать</button></footer>' +
+        '</article>';
+    }).join('');
+  }
+
+  $('results').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.copy');
+    if (!btn || !current || !current.variants) return;
+    var text = copyText(current.variants[+btn.getAttribute('data-i')]);
+    function done() { var old = btn.textContent; btn.textContent = 'Скопировано'; setTimeout(function () { btn.textContent = old; }, 1400); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { window.prompt('Скопируйте текст:', text); });
+    } else {
+      window.prompt('Скопируйте текст:', text);
+    }
+  });
+
+  ids.forEach(function (id) {
+    $(id).addEventListener('input', render);
+    $(id).addEventListener('change', render);
+  });
+  $('reset').addEventListener('click', function () {
+    ids.forEach(function (id) { if (id !== 'start' && id !== 'end') $(id).value = DEF[id]; });
+    render();
+  });
+
+  render();
+
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
