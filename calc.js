@@ -17,7 +17,8 @@
   var SLACK_NOTE = 30; // про лишнее время в окне пишем, только если его не меньше, мин
   var SIMILAR = 15;    // варианты, отличающиеся меньше чем на это, считаем одинаковыми, мин
 
-  var DEFAULTS = { cap: 5, reserve: 15, charge: 5.5, soc0: 100, shortPct: 65, slack: 'break' };
+  // полный запас хода 6 ч, реально ездим 5 ч (остаётся ~17%), полная зарядка 5,5 ч
+  var DEFAULTS = { cap: 6, reserve: 100 / 6, charge: 5.5, soc0: 100, shortPct: 65, slack: 'break' };
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function num(v, d) {
